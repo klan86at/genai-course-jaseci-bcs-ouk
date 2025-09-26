@@ -9,12 +9,15 @@ Gen AI Training offered by Open University of Kenya with the partners Jaseci-lab
 ## Setup
 ```bash
 # Create virtual environment
-python3.12 -m venv jac-env
-source jac-env/bin/activate
+python3.12 -m venv jac-env # Windows
+source jac-env/bin/activate  # Windows
 
+```bash
 # Install dependencies
 pip install jaclang
+pip install qrcode[pil]
 
+```bash
 # Running your code
 set GEMINI_API_KEY="<your-gemini-api-key>"
 jac run <file_name>.jac
