@@ -15,7 +15,10 @@ source jac-env/bin/activate  # Windows
 # Install dependencies
 pip install jaclang
 pip install qrcode[pil]
+pip install byllm
 
 # Running your code
-set GEMINI_API_KEY="<your-gemini-api-key>"
+export GROQ_API_KEY="<your-groq-api-key>"
+export GOOGLE_API_KEY="<your-google-api-key>"
+export OPEN_API_KEY="<your-open-api-key>"
 jac run <file_name>.jac
