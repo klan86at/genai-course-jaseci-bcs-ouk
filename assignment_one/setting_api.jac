@@ -1,3 +1,4 @@
+# utilizing byllm to generate poem
 import from byllm { Model }
 
 glob llm = Model(model_name="groq/llama-3.1-8b-instant");
