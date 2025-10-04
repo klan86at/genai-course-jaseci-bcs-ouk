@@ -3,7 +3,7 @@
 import random;
 import from byllm.llm { Model }
 
-# glob llm = Model(model_name="gpt-4o",verbose=False);
+# Calling the model
  glob llm = Model(model_name="gemini/gemini-2.0-flash", verbose=False);
 
 """Provide a fun hint if guess is incorrect"""
