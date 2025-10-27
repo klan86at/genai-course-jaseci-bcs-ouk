@@ -77,7 +77,7 @@ walker generate_file_tree {
                 elif entry.endswith(".jac") {lang = "jac"; }
                 elif entry.endswith((".js", ".ts")) { lang = "javascript"; }
 
-                file_node - spawn node::file {
+                file_node = spawn node::file {
                     name = entry,
                     path = rel_path,
                     language = lang
