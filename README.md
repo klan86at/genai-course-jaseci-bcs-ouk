@@ -9,8 +9,9 @@ Gen AI Training offered by Open University of Kenya with the partners Jaseci-lab
 ## Setup
 ```bash
 # Create virtual environment
-python3.12 -m venv jac-env # Windows
-source jac-env/bin/activate  # Windows
+python3.12 -m venv jac-env 
+jac-env\Scripts\activate # Windows
+source jac-env/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install jaclang
