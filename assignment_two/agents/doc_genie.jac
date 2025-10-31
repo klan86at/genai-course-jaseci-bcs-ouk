@@ -1,97 +1,94 @@
-include graphs.code_base_graph;
+node DocGenie(Toolbox) {
+    has final_markdown: str = "";
+    has include_diagrams: bool = true;
 
-walker generate_markdown {
-    root {
-        repo_nodes = [here --> node::repo];
-        if !repo_nodes {
-            report {"error": "No repository found in graph."};
-            disengage;
+     #  AGENT 1: OverviewAgent
+     def OverviewAgent(readme_summary: str) -> str by llm(
+        role="You are a Documentation Specialist focused on project overviews.",
+        prompt="Summarize the following README content into a clear, engaging 'Project Overview' section for developer docs.",
+        input=readme_summary,
+        output_format="Markdown section starting with '## Project Overview'"
+    );
+
+    #  AGENT 2: InstallAgent
+    def InstallAgent(file_tree: dict) -> str by llm(
+        role="You are a DevOps Documentation Agent.",
+        prompt="Based on the repository file structure, generate a concise 'Installation' guide in Markdown. "
+               "Check for files like requirements.txt, pyproject.toml, Dockerfile, etc. "
+               "If none found, give a generic instruction.",
+        input=str(file_tree),
+        output_format="Markdown section starting with '## Installation'"
+    );
+
+     #  AGENT 3: UsageAgent
+     def UsageAgent(file_tree: dict, code_meta: dict) -> str by llm(
+        role="You are a Developer Experience Agent.",
+        prompt="Identify likely entry points (e.g., main.py, app.py) from the file tree and code metadata. "
+               "Generate a 'Usage' section showing how to run the project.",
+        input={"file_tree": file_tree, "code_meta": code_meta},
+        output_format="Markdown section starting with '## Usage'"
+    );
+
+    #  AGENT 4: ApiDocAgent
+    def ApiDocAgent(code_meta: dict) -> str by llm(
+        role="You are an API Documentation Engineer.",
+        prompt="Generate a detailed API reference from the provided code metadata. "
+               "For each file, list its classes and functions with brief, professional descriptions. "
+               "Use placeholders if descriptions are missing, but keep structure clean.",
+        input=code_meta,
+        output_format="Markdown section starting with '## 📚 API Reference', with subsections per file"
+    );
+
+     #  AGENT 5: DiagramAgent
+     def DiagramAgent(code_meta: dict) -> str {
+        if not self.include_diagrams or not code_meta {
+            return "";
         }
-        repo = repo_nodes[0];
-
-        md = "";
-
-        # 1. Project Overview
-        md += self.build_overview_section(repo);
-
-        # 2. Repository Structure
-        md += self.build_structure_section(repo);
-
-        # 3. Installation & Setup
-        md += self.build_installation_section();
-
-        # 4. Core Modules & API Reference
-        md += self.build_api_reference_section(repo);
-
-        # 5. Function Relationships (Call Graph)
-        md += self.build_relationships_section();
-
-        # Save to file
-        repo_name = "unknown";
-        if repo.url {
-            repo_name = repo.url.split("/")[-1].replace(".git", "");
-        }
-        output_path = "./outputs/" + repo_name + "/docs.md";
-        py::os.makedirs(py::os.path.dirname(output_path), exist_ok=True);
-        py::open(output_path, "w").write(md);
-
-        print("✅ Documentation saved to: " + output_path);
-        report {"status": "success", "output_path": output_path};
+            
+        # Using LLM to generate *realistic* Mermaid based on actual structure
+        diagram_spec = llm(
+            role="You are a Software Architect.",
+            prompt="Generate a Mermaid flowchart (graph TD) showing key module relationships based on this code structure. "
+                   "Only include real files and plausible call flows. Output ONLY the Mermaid code block.",
+            input=code_meta,
+            output_format="Raw Mermaid code without markdown fences"
+        );
+        return "## System Diagram\n\n```mermaid\n" + diagram_spec + "\n```\n";
     }
 
-    ability build_overview_section(repo) {
-        section = "# Project Overview\n\n";
-        readme_files = [repo --> node::file(name in ["README.md", "readme.md"])];
-        if readme_files and readme_files[0].summary {
-            section += readme_files[0].summary + "\n\n";
-        } else {
-            section += "No README summary available.\n\n";
-        }
-        return section;
+    #  COORDINATOR: DocGenie (main)
+    def generate_documentation(
+        readme_summary: str,
+        file_tree: dict,
+        code_meta: dict
+    ) -> str {
+        # Parallel-style execution (simulated sequentially here)
+        overview = self.OverviewAgent(readme_summary);
+        install  = self.InstallAgent(file_tree);
+        usage    = self.UsageAgent(file_tree, code_meta);
+        api_ref  = self.ApiDocAgent(code_meta);
+        diagram  = self.DiagramAgent(code_meta);
+
+        # Assemble final document
+        full_doc = "\n".join([
+            overview.strip(),
+            install.strip(),
+            usage.strip(),
+            api_ref.strip(),
+            diagram.strip()
+        ]);
+
+        return full_doc;
     }
 
-    ability build_structure_section(repo) {
-        section = "# Repository Structure\n\n";
-        section += "```\n";
-        section += self.render_tree(repo, 0);
-        section += "```\n\n";
-        return section;
-    }
-
-    ability render_tree(node, depth) {
-        indent = "  " * depth;
-        if jtype(node) == "folder" {
-            result = indent + "📁 " + node.name + "/\n";
-            children = node --> node::folder + node --> node::file;
-            for child in children {
-                result += self.render_tree(child, depth + 1);
-            }
-            return result;
-        } else if jtype(node) == "file" {
-            return indent + "📄 " + node.name + "\n";
-        } else {
-            # repo root
-            result = node.local_path.split("/")[-1] + "/\n";
-            children = node --> node::folder + node --> node::file;
-            for child in children {
-                result += self.render_tree(child, 1);
-            }
-            return result;
-        }
-    }
-
-    ability build_installation_section() {
-        return """# Installation & Setup
+    # === Entry ability: called by CodeGenius ===
+    can process with CodeGenius entry {
+        md = self.generate_documentation(
+            readme_summary=visitor.readme_context,
+            file_tree=visitor.repo_structure,
+            code_meta=visitor.code_metadata
+        );
+        self.final_markdown = md;
+        visitor.final_docs = md;  # Pass back to supervisor
     }
 }
-        
-
-```bash
-# Clone the repository
-git clone <REPO_URL>
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the application
-python main.py

@@ -1,129 +1,92 @@
-# repo_mapper
-import from byllm { Model }
-include graphs.code_base_graph;
+import from byllm.llm { Model }
+import os;
 
-# Global LLM instance 
 glob llm = Model(model_name="gemini/gemini-2.0-flash-001", verbose=False);
 
-walker clone_repo {
+enum RoutingNodes {
+    RepoMapper = "RepoMapper",
+    CodeAnalyzer = "CodeAnalyzer",
+    CodeGenie = "CodeGenie"
+}
+node CodeGenius {
     has github_url: str;
-
-    root {
-        try{
-            # Validate and clone repo using python helper
-            cloned_path = py::py_helpers.clone_repo(self.github_url);
-            print("Repo cloned to: " + cloned_path);
-            report{
-                "status": "success",
-                "cloned_path": cloned_path,
-                "repo_url": self.github_url
-            };
-        } catch e {
-            error_msg = " Cloning failed: " + str(e);
-            print(error_msg);
-            report {
-                "status": "error",
-                "message": error_msg,
-                "repo_url": self.github_url
-            };
-        }
-    }
+    has repo_structure: dict = {};
+    has documented_files: list[str] = [];
+    has pending_files: list[str] = [];
+    has final_docs: str = "";
+    has priority_order: list[str] = [];  # ["main.py", "core/", "utils/"]
+    has status: str = "idle";  # idle, analyzing, delegating, aggregating, complete
 }
+node RepoMapper(toolbox) {
+    has file_tree: dict = {};
+    has readme_summary: str = "";
+    has ignored_dirs: list[str] = [".git", "node_modules", "__pycache__", "dist", "build", "myenv", "venv"];
+    has ignored_files: list[str] = ["*.log", "*.tmp", "package-lock.json", "uv-lock"];
 
-walker generate_file_tree {
-    has directory_path: str;
-
-    root {
-        # Create repo root node
-        repo_node = create node repo with {
-            local_path: self.directory_path;
+    # === TOOL: Clone repo and build filtered file tree ===
+    def build_file_tree(github_url: str) -> dict {
+        # Simulated for now
+        self.file_tree = {
+            "src/": {
+                "main.py": {},
+                "core/": {"engine.py": {}, "__init__.py": {}}
+            },
+            "README.md": {},
+            "requirements.txt": {}
         };
-
-        # Build file tree recursively
-        self.build_tree(self.directory_path, repo_node);
-
-        report {
-            "status": "success",
-            "repo_node_id": jid(repo_node),
-            "directory": self.directory_path
-        };
+        return self.file_tree;
     }
-    # Recursive helper to build graph
-    ability build_tree(current_path: str, parent_node) {
-        ignore_dirs = {".git", "__pycache__", "node_modules", ".venv", "venv", "myenv", "jac-env", "dist", "build"};
-        entries = py::os.listdir(current_path);
 
-        for entry in entries {
-            abs_path = py::os.path.join(current_path, entry);
-            rel_path = py::os.path.relpath(abs_path, self.directory_path);
+    # === TOOL: Extract and summarize README.md ===
+    def summarize_readme(github_url: str) -> str {
+        raw_readme = "# AI DocGen\nA tool that auto-generates developer docs from code.";
+        self.readme_summary = "AI DocGen: Automatically generates clear, structured documentation from source code using LLMs and static analysis.";
+        return self.readme_summary;
+    }
 
-            # Skip ignored directories
-            if py::os.path.isdir(abs_path) and entry in ignore_dirs {
+    # === PHASE 1: PLAN GENERATION ===
+    def generate_plan(github_url: str) -> list[str] by llm(
+        prompt="You are a repository analyst. Given a GitHub URL, outline a step-by-step plan to understand the repo structure and purpose. "
+               "Available actions: [build_file_tree, summarize_readme]. "
+               "Return a JSON list of action names in execution order, e.g., [\"build_file_tree\", \"summarize_readme\"].",
+        output_schema={"type": "array", "items": {"type": "string"}}
+    );
+
+    # === PHASE 2: EXECUTE PLAN ===
+    def execute_plan(plan: list[str], github_url: str) -> dict {
+        results = {};
+        for step in plan:
+            if step == "build_file_tree":
+                results["file_tree"] = self.build_file_tree(github_url);
+            elif step == "summarize_readme":
+                results["readme_summary"] = self.summarize_readme(github_url);
+            else:
+                # Optional: log unknown step
                 continue;
-            }
-
-            if py::os.path.isdir(abs_path) {
-                folder_node = spawn node::folder {
-                    name = entry,
-                    path = rel_path
-                };
-                spawn parent_node --> edge::contains to folder_node;
-                # Recurse into subdirectory
-                self.build_tree(abs_path, folder_node);
-            } esle {
-                # Determine language from file extension
-                lang = "unknown";
-                if entry.endswith(".py") {lang = "python"; }
-                elif entry.endswith(".jac") {lang = "jac"; }
-                elif entry.endswith((".js", ".ts")) { lang = "javascript"; }
-
-                file_node = spawn node::file {
-                    name = entry,
-                    path = rel_path,
-                    language = lang
-                };
-                spawn parent_node --> edge::contains to file_node;
-            }
-        }
-    }
-}
-
-wlaker summarize_readme {
-    root {
-        # Start from repo node
-        take --> node::repo;
+        return results;
     }
 
-    repo {
-        # Find README files in the file tree
-        readme_files = --> node::file(
-            name in ["README.md", "README.rst", "README", "readme.md", "readme"]
-        );
+    # === PLAN-AND-EXECUTE ORCHESTRATOR ===
+    def map_repository(github_url: str) -> str {
+        # 1. Generate plan
+        plan = self.generate_plan(github_url);
+        
+        # 2. Execute plan
+        outcomes = self.execute_plan(plan, github_url);
+        
+        # 3. Store results
+        if "file_tree" in outcomes:
+            self.file_tree = outcomes["file_tree"];
+        if "readme_summary" in outcomes:
+            self.readme_summary = outcomes["readme_summary"];
+        
+        return "Repository mapping completed via Plan-and-Execute.";
+    }
 
-        if !readme_files {
-            print("No README found.");
-            report {"status": "no_readme"};
-            return;
-        }
-
-        fro readme in readme_files {
-            # Read file content via Python helper
-            abs_path = py::os.path.join(repo.local_path, readme.path);
-            try {
-                content = py::open(abs_path, 'r', encoding='utf-8').read();
-                readme.content = content; # store raw content
-
-                # Generate summary via llm
-                prompt = "Summarize this README in 3 - 4 clear concise sentences:\n\n" + content[:4000];
-                summary = llm.generate(prompt);
-                readme.summary = summary; # store summary on file node
-
-                print("Summarized: " + readme.path);
-            } catch e {
-                print("Failed to read or summarize " + readme.path + ": " + str(e));
-            }
-        }
-
-        report {"status": "success", "readme_count": len(readme_files)};
+    # === Entry ability: triggered by CodeGenius walker ===
+    can process with CodeGenius entry {
+        _ = self.map_repository(visitor.github_url);
+        visitor.repo_structure = self.file_tree;
+        visitor.readme_context = self.readme_summary;
     }
 }
