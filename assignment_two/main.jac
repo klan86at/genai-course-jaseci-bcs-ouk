@@ -1,7 +1,25 @@
 import from agents.repo_mapper { RepoMapper }
 import from agents.code_analyzer { CodeAnalyzer }
 import from agents.docgenie { DocGenie }
+import from byllm.llm { Model }
+import os;
 
+glob llm = Model(model_name="gemini/gemini-2.0-flash-001", verbose=False);
+
+enum RoutingNodes {
+    RepoMapper = "RepoMapper",
+    CodeAnalyzer = "CodeAnalyzer",
+    CodeGenie = "CodeGenie"
+}
+node CodeGenius {
+    has github_url: str;
+    has repo_structure: dict = {};
+    has documented_files: list[str] = [];
+    has pending_files: list[str] = [];
+    has final_docs: str = "";
+    has priority_order: list[str] = [];  # ["main.py", "core/", "utils/"]
+    has status: str = "idle";  # idle, analyzing, delegating, aggregating, complete
+}
 walker CodeGenius(agent) {
     has github_url: str;
 

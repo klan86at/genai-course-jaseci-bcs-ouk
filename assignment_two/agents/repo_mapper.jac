@@ -1,22 +1,5 @@
-import from byllm.llm { Model }
-import os;
+import from impl { repo_mapper_impl}
 
-glob llm = Model(model_name="gemini/gemini-2.0-flash-001", verbose=False);
-
-enum RoutingNodes {
-    RepoMapper = "RepoMapper",
-    CodeAnalyzer = "CodeAnalyzer",
-    CodeGenie = "CodeGenie"
-}
-node CodeGenius {
-    has github_url: str;
-    has repo_structure: dict = {};
-    has documented_files: list[str] = [];
-    has pending_files: list[str] = [];
-    has final_docs: str = "";
-    has priority_order: list[str] = [];  # ["main.py", "core/", "utils/"]
-    has status: str = "idle";  # idle, analyzing, delegating, aggregating, complete
-}
 node RepoMapper(toolbox) {
     has file_tree: dict = {};
     has readme_summary: str = "";

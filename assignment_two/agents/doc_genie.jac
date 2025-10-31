@@ -1,3 +1,5 @@
+# import form impl { doc_genie_impl }
+
 node DocGenie(Toolbox) {
     has final_markdown: str = "";
     has include_diagrams: bool = true;

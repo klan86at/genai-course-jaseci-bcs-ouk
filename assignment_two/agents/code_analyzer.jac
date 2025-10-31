@@ -1,3 +1,4 @@
+# import from codeGenius_impl { CodeAnalyzer.parse_file_with_treesitter, CodeAnalyzer.build_code_context_graph, get_callers, nalyze_codebase }
 
 node CodeAnalyzer(Toolbox) {
     def parse_file_with_treesitter(filepath: str) -> dict;
