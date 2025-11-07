@@ -1,10 +1,11 @@
 # RepoMapper.jac
-include agent_core;
+import from agent_core { Toolbox }
 node RepoMapper(Toolbox) {
-    has file_tree: dict = {};
+    has file_tree: dict[str, str] = {};
     has readme_summary: str = "";
 
-    def build_file_tree(github_url: str) -> dict;
+    def build_file_tree(github_url: str) -> dict[str, str];
+    
     def summarize_readme(github_url: str) -> str;
 
     def map_repository(github_url: str) -> str by llm(
@@ -12,19 +13,21 @@ node RepoMapper(Toolbox) {
         tools=[self.build_file_tree, self.summarize_readme]
     );
 
-    impl RepoMapper.process {
-        _ = self.map_repository(visitor.github_url);
-        visitor.repo_structure = self.file_tree;
-        visitor.readme_context = self.readme_summary;
+    impl RepoMapper.process -> None {
+        print("🗂️ RepoMapper: Processing repository...");
+        _ = self.map_repository("https://github.com/example/project");
+        print("🗂️ RepoMapper: Completed processing.");
     }
 
     impl RepoMapper.build_file_tree {
         # Stub: real impl would clone & walk files
         self.file_tree = {
-            "src/": {"main.py": {}, "utils.py": {}},
-            "README.md": {},
-            "requirements.txt": {}
+            "src/main.py": "file",
+            "src/utils.py": "file", 
+            "README.md": "file",
+            "requirements.txt": "file"
         };
+
         return self.file_tree;
     }
 

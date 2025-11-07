@@ -1,59 +1,127 @@
-# # CCG Node Types (defined elsewhere or inline)
-# walker BuildCCG {
-#     has file_path: str;
-#     has ast_units: list[dict] = [];  # Output from Tree-sitter (or mock)
-#     has node_map: dict[str, node] = {};  # Tracks created nodes: "file:func" → node
+# utils/code_parser.py
+import os
+import re
+import ast
 
-#     # Entry: triggered when spawned on a CodeAnalyzer (or file node)
-#     can build_ccg with CodeAnalyzer entry {
-#         self.file_path = visitor.target_file;
-#         self.ast_units = visitor.parsed_ast;  # Assume this is provided
+def parse_file(file_path: str) -> dict:
+    """Parse file and return structured code components."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+    
+    with open(file_path, 'r', encoding='utf-8') as f:
+        source_code = f.read()
+    
+    ext = os.path.splitext(file_path)[1].lower()
+    
+    if ext == '.py':
+        return _parse_python(source_code)
+    elif ext == '.jac':
+        return _parse_jac_fallback(source_code)
+    else:
+        return {"functions": [], "classes": [], "variables": [], "calls": []}
 
-#         # Create module node for this file
-#         mod_name = self.file_path.split("/")[-1].replace(".py", "");
-#         mod_node = here ++> Module(name=mod_name, file_path=self.file_path);
 
-#         for unit in self.ast_units {
-#             match unit.type {
-#                 "function" => {
-#                     fn_node = mod_node +>:Contains:+> Function(
-#                         name=unit.name,
-#                         file_path=self.file_path
-#                     );
-#                     self.node_map[f"{self.file_path}:{unit.name}"] = fn_node;
-#                 }
-#                 "class" => {
-#                     cls_node = mod_node +>:Contains:+> Class(
-#                         name=unit.name,
-#                         file_path=self.file_path,
-#                         bases=unit.bases ?? []
-#                     );
-#                     self.node_map[f"{self.file_path}:{unit.name}"] = cls_node;
-#                 }
-#                 "call" => {
-#                     caller_key = f"{self.file_path}:{unit.caller}";
-#                     callee_key = unit.callee.includes(":")
-#                         ? unit.callee
-#                         : f"{self.file_path}:{unit.callee}";
+def _parse_python(source_code: str) -> dict:
+    """
+    Parse Python code using ast to extract:
+    - functions (sync/async)
+    - classes (with inheritance)
+    - top-level variables
+    - function calls
+    """
+    try:
+        tree = ast.parse(source_code)
+    except SyntaxError:
+        return {"functions": [], "classes": [], "variables": [], "calls": []}
 
-#                     if caller_key in self.node_map and callee_key in self.node_map {
-#                         self.node_map[caller_key] +>:Calls:+> self.node_map[callee_key];
-#                     }
-#                 }
-#                 "inheritance" => {
-#                     child_key = f"{self.file_path}:{unit.child}";
-#                     for base in unit.bases {
-#                         // Assume base is fully qualified or resolved
-#                         base_key = base.includes(":") ? base : f"{self.file_path}:{base}";
-#                         if child_key in self.node_map and base_key in self.node_map {
-#                             self.node_map[child_key] +>:Inherits:+> self.node_map[base_key];
-#                         }
-#                     }
-#                 }
-#             }
-#         }
+    functions = []
+    classes = []
+    variables = []
+    calls = []
 
-#         print(f"✅ CCG built for {self.file_path}");
-#         disengage;
-#     }
-# }
+    for node in ast.walk(tree):
+        # Top-level variable assignments (e.g., x = 10)
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    variables.append({
+                        "name": target.id,
+                        "lineno": node.lineno
+                    })
+
+        # Function definitions
+        elif isinstance(node, ast.FunctionDef):
+            functions.append({
+                "name": node.name,
+                "lineno": node.lineno,
+                "docstring": ast.get_docstring(node) or "",
+                "async": False
+            })
+        elif isinstance(node, ast.AsyncFunctionDef):
+            functions.append({
+                "name": node.name,
+                "lineno": node.lineno,
+                "docstring": ast.get_docstring(node) or "",
+                "async": True
+            })
+
+        # Class definitions with inheritance
+        elif isinstance(node, ast.ClassDef):
+            bases = []
+            for base in node.bases:
+                if isinstance(base, ast.Name):
+                    bases.append(base.id)
+                # Handle attr (e.g., BaseClass.Sub) if needed
+            classes.append({
+                "name": node.name,
+                "lineno": node.lineno,
+                "docstring": ast.get_docstring(node) or "",
+                "bases": bases
+            })
+
+        # Function calls
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                calls.append({
+                    "callee": node.func.id,
+                    "lineno": node.lineno
+                })
+
+    return {
+        "functions": functions,
+        "classes": classes,
+        "variables": variables,
+        "calls": calls
+    }
+
+
+def _parse_jac_fallback(code: str) -> dict:
+    """Basic Jac parsing using regex."""
+    functions = []
+    classes = []
+    
+    # Match walker/ability definitions
+    func_pattern = r'(walker|ability)\s+(\w+)\s*{'
+    for match in re.finditer(func_pattern, code):
+        functions.append({
+            "name": match.group(2),
+            "signature": f"{match.group(1)} {match.group(2)}",
+            "docstring": "",
+            "calls": []
+        })
+    
+    # Match node definitions
+    node_pattern = r'node\s+(\w+)\s*{'
+    for match in re.finditer(node_pattern, code):
+        classes.append({
+            "name": match.group(1),
+            "bases": [],
+            "methods": []
+        })
+    
+    return {
+        "functions": functions,
+        "classes": classes,
+        "variables": [],
+        "calls": []
+    }
