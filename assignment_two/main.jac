@@ -26,38 +26,31 @@ walker CodeGenius {
     has status: str = "idle";
     has final_docs: str = "";
 
-    # def route_to_node(current_phase: str, context: str) -> RoutingNodes by llm();
-    # def route_to_node(github_url: str) -> str by llm(
-    #     method="ReAct",
-    #     tools=[RepoMapper, CodeAnalyzer, DocGenie],
-    #     instructions="You must return exactly one of these tool names as a string: 'RepoMapper', 'CodeAnalyzer', or 'DocGenie'. For new repositories, return 'RepoMapper' first."
-    # );
+    def route_to_node(context: str) -> str by llm(
+        method="ReAct",
+        instructions="Based on the context, return exactly one node name: 'RepoMapper', 'CodeAnalyzer', or 'DocGenie'. For new repositories or URLs, return 'RepoMapper'. After repository mapping, return 'CodeAnalyzer'. After code analysis, return 'DocGenie'."
+    );
 
 
     can start with `root entry {
-        print("🚀 Starting CodeGenius...");
         self.status = "running";
-        # next = self.route_to_node(self.github_url);
-        # print(f"🔍 LLM returned: '{next}'"); 
-        self._go_to("RepoMapper");
+        next = self.route_to_node(self.github_url).strip();
+        self._go_to(next);
     }
 
     can resume with RepoMapper exit {
-        print("📁 RepoMapper completed, going to CodeAnalyzer...");
-        # next = self.route_to_node(visitor.readme_context);
-        self._go_to("CodeAnalyzer");
+        next = self.route_to_node("repository mapped");
+        self._go_to(next);
     }
 
     can resume with CodeAnalyzer exit {
-        print("🔍 CodeAnalyzer completed, going to DocGenie...");
-        # next = self.route_to_node(str(keys(visitor.code_metadata)));
-        self._go_to("DocGenie");
+        next = self.route_to_node("code analyzed");
+        self._go_to(next);
     }
 
     can finalize with DocGenie exit {
         self.final_docs = visitor.final_docs;
         self.status = "complete";
-        print("✅ Documentation complete.");
         disengage;
     }
     def clone_repo(url: str) -> str {
@@ -72,51 +65,39 @@ walker CodeGenius {
         return "DocGenie should handle this";
     }
     def _go_to(target: str) -> None {
-        print(f"🔍 Looking for node type: '{target}'");
-        node_type = target;  # Use target directly
-        
         all_nodes = [root -->];
-        print(f"📋 Found {len(all_nodes)} connected nodes");
         
         for n in all_nodes {
             node_name = type(n).__name__;
-            print(f"🔎 Checking node: '{node_name}'");
-            if node_name == node_type {
-                print(f"✅ Found matching node: '{node_name}', processing...");
-                n.process();
-                
-                # Manually continue the flow
-                if node_type == "RepoMapper" {
-                    print("📁 RepoMapper completed, going to CodeAnalyzer...");
-                    self._go_to("CodeAnalyzer");
-                } elif node_type == "CodeAnalyzer" {
-                    print("🔍 CodeAnalyzer completed, going to DocGenie...");
-                    self._go_to("DocGenie");
-                } elif node_type == "DocGenie" {
-                    print("📝 Testing method call...");
-                    test_result = n.test_method();
-                    print(f"📝 Test result: {test_result}");
-                    
-                    print("📝 Calling process...");
-                    n.process();
-                    
-                    print("📝 Calling run_process...");
+            if node_name == target {
+                if target == "DocGenie" {
                     n.run_process();
-                    
-                    docs = n.get_final_docs();
-                    print(f"📝 Retrieved docs length: {len(docs)}");
-                    self.final_docs = docs;
-                    print("✅ Documentation complete.");
+                    self.final_docs = n.get_final_docs();
                     self.status = "complete";
+                } else {
+                    n.process();
+                    if target == "RepoMapper" {
+                        next = self.route_to_node("repository mapped").strip();
+                        self._go_to(next);
+                    } elif target == "CodeAnalyzer" {
+                        next = self.route_to_node("code analyzed").strip();
+                        self._go_to(next);
+                    }
                 }
                 return;
             }
         }
-
-        print(f"❌ Node of type '{node_type}' not found under root");
         disengage;
     }
 }
+
+sem CodeGenius.route_to_node = """
+Determine the next processing node based on the current context:
+- For new GitHub URLs or initial requests: return "RepoMapper"
+- After repository mapping is complete: return "CodeAnalyzer" 
+- After code analysis is complete: return "DocGenie"
+Return only the node name as a string.
+""";
 
 with entry {
     github_url = "https://github.com/example/project";
@@ -129,7 +110,6 @@ with entry {
     walker_instance = CodeGenius(github_url=github_url);
     walker_instance spawn root;
 
-    # Access final_docs directly from the walker
     if walker_instance.final_docs != "" {
         print("\n" + "="*50);
         print(walker_instance.final_docs);
@@ -138,4 +118,3 @@ with entry {
         print("No documentation generated.");
     }
 }
-# 

@@ -14,9 +14,7 @@ node RepoMapper(Toolbox) {
     );
 
     impl RepoMapper.process -> None {
-        print("🗂️ RepoMapper: Processing repository...");
         _ = self.map_repository("https://github.com/example/project");
-        print("🗂️ RepoMapper: Completed processing.");
     }
 
     impl RepoMapper.build_file_tree {

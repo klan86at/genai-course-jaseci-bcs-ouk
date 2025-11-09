@@ -25,9 +25,7 @@ node CodeAnalyzer(Toolbox) {
     );
 
     impl CodeAnalyzer.process -> None {
-        print("🔍 CodeAnalyzer: Processing codebase...");
         _ = self.analyze_codebase(["src/main.py", "src/utils.py"]);
-        print("🔍 CodeAnalyzer: Completed processing.");
     }
 
     impl CodeAnalyzer.parse_file_with_treesitter {

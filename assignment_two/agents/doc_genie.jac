@@ -39,20 +39,13 @@ node DocGenie(Toolbox) {
     }
 
     def run_process() -> None {
-        print("📝 DocGenie: Starting run_process method...");
-        
-        # Generate documentation using individual render methods (bypass LLM for now)
         overview = self.render_overview("AI DocGen: Auto-generates developer documentation from source code.");
         installation = self.render_installation({"src/main.py": "file", "README.md": "file", "requirements.txt": "file"});
         usage = self.render_usage({"src/main.py": "file", "README.md": "file"});
         api_ref = self.render_api_reference({"src/main.py": {"functions": ["train_model", "preprocess_data"]}});
         diagram = self.generate_diagram({"src/main.py": {"functions": ["train_model", "preprocess_data"]}});
         
-        # Combine all sections
         self.final_markdown = overview + "\n" + installation + "\n" + usage + "\n" + api_ref + "\n" + diagram;
-        
-        print(f"📝 Final markdown length: {len(self.final_markdown)}");
-        print("📝 DocGenie: Completed documentation generation.");
     }
 }
 
