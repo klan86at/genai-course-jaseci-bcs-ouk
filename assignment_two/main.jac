@@ -74,13 +74,34 @@ walker CodeGenius {
                     n.run_process();
                     self.final_docs = n.get_final_docs();
                     self.status = "complete";
+                } elif target == "CodeAnalyzer" {
+                    # Pass file list from RepoMapper to CodeAnalyzer
+                    repo_mapper_node = None;
+                    for rn in all_nodes {
+                        if type(rn).__name__ == "RepoMapper" {
+                            repo_mapper_node = rn;
+                            break;
+                        }
+                    }
+                    
+                    if repo_mapper_node and repo_mapper_node.file_tree {
+                        file_list = [];
+                        for file_path, file_type in repo_mapper_node.file_tree.items() {
+                            if file_type == "source" {
+                                full_path = f"{repo_mapper_node.repo_path}/{file_path}";
+                                file_list.append(full_path);
+                            }
+                        }
+                        n.file_list = file_list;
+                    }
+                    
+                    n.process();
+                    next = self.route_to_node("code analyzed").strip();
+                    self._go_to(next);
                 } else {
                     n.process();
                     if target == "RepoMapper" {
                         next = self.route_to_node("repository mapped").strip();
-                        self._go_to(next);
-                    } elif target == "CodeAnalyzer" {
-                        next = self.route_to_node("code analyzed").strip();
                         self._go_to(next);
                     }
                 }
@@ -100,7 +121,7 @@ Return only the node name as a string.
 """;
 
 with entry {
-    github_url = "https://github.com/example/project";
+    github_url = "https://github.com/octocat/Hello-World";
 
     root ++> RepoMapper();
     root ++> CodeAnalyzer();
