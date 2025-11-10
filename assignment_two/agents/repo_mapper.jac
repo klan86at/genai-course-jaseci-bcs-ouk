@@ -38,7 +38,7 @@ impl RepoMapper.clone_repository {
     # Create temp directory
     temp_path = "./temp_repos";
     if not os.path.exists(temp_path) {
-        os.makedir(temp_path);
+        os.system("mkdir temp_repos");
     }
     
     # Remove existing if exists
