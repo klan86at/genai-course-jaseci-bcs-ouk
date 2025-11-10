@@ -67,7 +67,7 @@ assignment_two/
    ```
 2. Open your web browser and navigate to `http://localhost:8501`.
 3. Enter the GitHub repository URL you want to summarize and click "Generate Summary".
-4. View the generated summary displayed on the page.
+4. Download and View the generated summary displayed on the page.
 
 ## Note
 
