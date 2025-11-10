@@ -159,7 +159,7 @@ node CodeAnalyzer(Toolbox) {
         lines = source_code.split("\n");
         current_func = "";
         
-        for i, line in enumerate(lines) {
+        for (i, line) in enumerate(lines) {
             stripped = line.strip();
             
             # Track current function context
@@ -237,7 +237,7 @@ node CodeAnalyzer(Toolbox) {
         functions = [];
         lines = source_code.split("\n");
         
-        for i, line in enumerate(lines) {
+        for (i, line) in enumerate(lines) {
             stripped = line.strip();
             
             if language == "python" and stripped.startswith("def ") and "(" in stripped {
@@ -267,7 +267,7 @@ node CodeAnalyzer(Toolbox) {
         classes = [];
         lines = source_code.split("\n");
         
-        for i, line in enumerate(lines) {
+        for (i, line) in enumerate(lines) {
             stripped = line.strip();
             
             if language == "python" and stripped.startswith("class ") and ":" in stripped {

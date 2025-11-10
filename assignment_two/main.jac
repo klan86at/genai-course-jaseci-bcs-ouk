@@ -86,7 +86,8 @@ walker CodeGenius {
                     
                     if repo_mapper_node and repo_mapper_node.file_tree {
                         file_list = [];
-                        for file_path, file_type in repo_mapper_node.file_tree.items() {
+                        for file_path in repo_mapper_node.file_tree {
+                            file_type = repo_mapper_node.file_tree[file_path];
                             if file_type == "source" {
                                 full_path = f"{repo_mapper_node.repo_path}/{file_path}";
                                 file_list.append(full_path);
