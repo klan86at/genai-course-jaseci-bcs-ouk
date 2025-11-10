@@ -60,11 +60,6 @@ node CodeAnalyzer(Toolbox) {
             functions = self.extract_functions_regex(source_code, language);
             classes = self.extract_classes_regex(source_code, language);
             
-            mod_name = filepath.split("/")[-1].replace(".py", "").replace(".js", "");
-            mod = self.ccg_root ++> Module(name=mod_name, file_path=filepath);
-            mod.functions = functions;
-            mod.classes = classes;
-            
             parsed_data = {
                 "language": language,
                 "functions": functions,

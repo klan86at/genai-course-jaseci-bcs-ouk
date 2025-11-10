@@ -1,0 +1,10 @@
+# Core Jaclang and LLM libraries
+Jaseci
+# Environment and configuration
+python-dotenv>=1.0.0
+# Git operations (cloning)
+gitpython>=3.1.0
+# Web UI
+streamlit>=1.28.0
+requests>=2.31.0
+markdown>=3.5.0

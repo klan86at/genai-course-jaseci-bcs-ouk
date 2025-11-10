@@ -32,45 +32,20 @@ node DocGenie(Toolbox) {
     def get_final_docs() -> str {
         return self.final_markdown;
     }
-
-    def test_method() -> str {
-        print("📝 TEST: DocGenie test_method called!");
-        return "test works";
-    }
-
-    def run_process() -> None {
-        overview = self.render_overview("AI DocGen: Auto-generates developer documentation from source code.");
-        installation = self.render_installation({"src/main.py": "file", "README.md": "file", "requirements.txt": "file"});
-        usage = self.render_usage({"src/main.py": "file", "README.md": "file"});
-        api_ref = self.render_api_reference({"src/main.py": {"functions": ["train_model", "preprocess_data"]}});
-        diagram = self.generate_diagram({"src/main.py": {"functions": ["train_model", "preprocess_data"]}});
-        
-        self.final_markdown = overview + "\n" + installation + "\n" + usage + "\n" + api_ref + "\n" + diagram;
-    }
 }
 
 impl DocGenie.process -> None {
-    print("📝 DocGenie: Starting process method...");
-    
-    # Test with static content first
     self.final_markdown = "# Test Documentation\n\nThis is a test document.";
-    print(f"📝 Static docs length: {len(self.final_markdown)}");
     
-    # Try LLM call
-    print("📝 Calling LLM...");
     md = self.generate_documentation(
         "AI DocGen: Auto-generates developer documentation from source code.",
         {"src/main.py": "file", "README.md": "file"},
         {"src/main.py": {"functions": ["train_model", "preprocess_data"]}}
     );
-    print(f"📝 LLM returned: {len(md)} characters");
     
     if len(md) > 0 {
         self.final_markdown = md;
     }
-    
-    print(f"📝 Final markdown length: {len(self.final_markdown)}");
-    print("📝 DocGenie: Completed documentation generation.");
 }
 
 impl DocGenie.render_overview {
